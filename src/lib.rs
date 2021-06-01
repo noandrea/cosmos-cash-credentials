@@ -16,11 +16,18 @@ pub fn test_wasm() -> f32 {
     42.0
 }
 
+#[wasm_bindgen]
+pub fn merkle(csv_data: String, secret: String) -> String {
+    let data = csv_data.split(",").map(|s| String::from(s)).collect::<Vec<String>>();
+    let t = NaiveMerkleTree::from_strings(&secret, &data);
+    hex::encode(t.root())
+}
+
 /// Compute the Merkle tree root for a list of property
 ///
 /// HMAC is used for hashing
 pub fn compute_root(data: &Vec<String>, secret: &str) -> String {
-    let t = NaiveMerkleTree::new(secret, data);
+    let t = NaiveMerkleTree::from_strings(secret, data);
     hex::encode(t.root())
 }
 
@@ -63,9 +70,14 @@ struct NaiveMerkleTree {
 }
 
 impl NaiveMerkleTree {
-    pub fn new(secret: &str, src_data: &Vec<String>) -> Self {
-        let mut hash:Hmac<Sha256> = Hmac::new_from_slice(secret.as_bytes()).unwrap();
+
+    pub fn from_strings(secret: &str, src_data: &Vec<String>) -> Self {
         let data = src_data.iter().map(|v| Vec::from(v.to_owned())).collect::<Vec<Vec<u8>>>();
+        Self::new(secret, data)
+    }
+
+    pub fn new(secret: &str, data: Vec<Vec<u8>>) -> Self {
+        let mut hash:Hmac<Sha256> = Hmac::new_from_slice(secret.as_bytes()).unwrap();
         // branchesLen := int(math.Exp2(math.Ceil(math.Log2(float64(len(data))))))
         let branches_len = (data.len() as f64).log2().ceil().exp2() as usize;
         // We pad our data length up to the power of 2
