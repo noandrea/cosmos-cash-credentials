@@ -12,7 +12,7 @@
     // will "boot" the module and make it ready to use. Currently browsers
     // don't support natively imported WebAssembly as an ES module, but
     // eventually the manual initialization won't be required!
-    import init, { test_wasm, merkle } from '../pkg/cosmos_cash_credentials.js';
+    import init, { test_wasm, merkle_root, merkle_gen_proof, merkle_proof_is_valid } from '../pkg/cosmos_cash_credentials.js';
 
     async function run() {
         // First up we need to actually load the wasm file, so we use the
@@ -48,13 +48,33 @@
         console.log(`test_wasm = ${result}`);
 
 
-
+        // root
         document.getElementById("compute").addEventListener("click", () => {
             const data = document.getElementById("data").value;
             const secret = document.getElementById("secret").value;
-            const root = merkle(data, secret);
+            const root = merkle_root(data, secret);
             document.getElementById("root").innerText = `${root}`;
+        });
 
+        // root with proof
+        document.getElementById("proof_compute").addEventListener("click", () => {
+            const data = document.getElementById("proof_data").value;
+            const secret = document.getElementById("proof_secret").value;
+            const leaf = document.getElementById("proof_leaf").value;
+            const proof = merkle_gen_proof(data, secret, leaf);
+            document.getElementById("proof").innerText = `${proof}`;
+        });
+
+        // verify
+        document.getElementById("verify_compute").addEventListener("click", () => {
+            const secret = document.getElementById("verify_secret").value;
+            const proof = document.getElementById("verify_proof").value;
+            const leaf = document.getElementById("verify_leaf").value;
+            const is_verified = merkle_proof_is_valid(proof, secret, leaf);
+
+            const msg = `the submitted proof is${is_verified? "<span style='color: green'>VERIFIED</span>" : "<span style='color: red'> NOT VERIFIED</span>" }`
+
+            document.getElementById("verify").innerHTML = `${msg}<br><br></br>${proof.split(":").join("<br>")}`;
         });
     }
 
@@ -80,7 +100,35 @@
         <pre id="root"></pre>
     </div>
     <hr>
-    <h3>Verify data</h3>
+    <h3>Generate proof</h3>
+    <div>
+        <span><strong>Secret</strong></span> <br>
+        <input id="proof_secret" style="width: 90vw" type="text"  placeholder="secret" value="mysecret"><br/>
+        <span><strong>Data</strong></span><br>
+        <input id="proof_data" style="width: 90vw" type="text" placeholder="comma,separated,value" > <br/>
+        <span><strong>Element to prove</strong></span><br>
+        <input id="proof_leaf" style="width: 90vw" type="text" placeholder="value" > <br/>
+        <br>
+        <input id="proof_compute" type="button"  value="compute proof">
+    </div>
+    <div style="padding: 10px 0 0 0">
+        <textarea id="proof" rows="8" style="max-width: 90vw; min-width: 70vw"></textarea>
+    </div>
+    <hr>
+    <h3>Verify Proof</h3>
+    <div>
+        <span><strong>Secret</strong></span> <br>
+        <input id="verify_secret" style="width: 90vw" type="text"  placeholder="secret" value="mysecret"><br/>
+        <span><strong>Proof</strong></span><br>
+        <input id="verify_proof" style="width: 90vw" type="text" placeholder="root:id:hashes" > <br/>
+        <span><strong>Element to prove</strong></span><br>
+        <input id="verify_leaf" style="width: 90vw" type="text" placeholder="value" > <br/>
+        <br>
+        <input id="verify_compute" type="button"  value="verify proof">
+    </div>
+    <div>
+        <pre id="verify"></pre>
+    </div>
 
 </div>
 </body>
