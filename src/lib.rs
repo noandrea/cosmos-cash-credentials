@@ -17,46 +17,55 @@ pub fn test_wasm() -> f32 {
 }
 
 #[wasm_bindgen]
-pub fn merkle(csv_data: String, secret: String) -> String {
+pub fn merkle_root(csv_data: String, secret: String) -> String {
     let data = csv_data.split(",").map(|s| String::from(s)).collect::<Vec<String>>();
     let t = NaiveMerkleTree::from_strings(&secret, &data);
     hex::encode(t.root())
 }
 
-/// Compute the Merkle tree root for a list of property
-///
-/// HMAC is used for hashing
-pub fn compute_root(data: &Vec<String>, secret: &str) -> String {
-    let t = NaiveMerkleTree::from_strings(secret, data);
-    hex::encode(t.root())
-}
-
-
-fn _hash(h: &mut Hmac<Sha256>, a: &Vec<u8>, b: Option<&Vec<u8>>) -> Vec<u8> {
-    h.update(a.as_slice());
-    if let Some(data) = b {
-        h.update(data.as_slice());
+#[wasm_bindgen]
+pub fn merkle_gen_proof(csv_data: String, secret: String, leaf: String) -> Option<String> {
+    let data = csv_data.split(",").map(|s| String::from(s)).collect::<Vec<String>>();
+    let t = NaiveMerkleTree::from_strings(&secret, &data);
+    match t.generate_proof(leaf) {
+        Some(proof) => Some(proof.to_string()),
+        _ => None,
     }
-    let vh = h.to_owned().finalize().into_bytes();
-    h.reset();
-    vh.to_vec()
 }
 
-pub fn verify_proof(data: &Vec<u8>, proof: &Proof, secret: &str) {
+#[wasm_bindgen]
+pub fn merkle_proof_is_valid(root: String, secret: String, leaf: String, proof: String) -> bool {
+
+    let pieces:Vec<&str> = proof.split(":").collect();
+    // build a proof from a string that looks like
+    // INDEX:HASH1:HASH2:..:HASHn
+    let proof = Proof::new(
+        str::parse::<usize>(pieces[0]).unwrap(),
+        pieces[1..].iter().map(|hx| hex::decode(hx).unwrap()).collect::<Vec<Vec<u8>>>(),
+    );
+    verify_proof(&hex::decode(root).unwrap(), &secret, &leaf.into_bytes(), &proof)
+}
+
+
+
+pub fn verify_proof(root: &Vec<u8>, secret: &str, leaf: &Vec<u8>, proof: &Proof) -> bool{
     // use our secret to start with the hashing
-    let mut hash:Hmac<Sha256> = Hmac::new_from_slice(secret.as_bytes()).unwrap();
+    let mut hasher:Hmac<Sha256> = Hmac::new_from_slice(secret.as_bytes()).unwrap();
 
     let mut index = (proof.index() + 2^proof.hashes().len()) as i32;
 
-    let mut proof_hash = _hash(&mut hash, data, None);
+    let mut proof_hash = _hash(&mut hasher, leaf, None);
 
     proof.hashes().iter().for_each(|p| {
         match index % 2 {
-             0 => {proof_hash = _hash(&mut hash, &proof_hash, Some(p))}
-             _ => {proof_hash = _hash(&mut hash, &p, Some(&proof_hash))}
+             0 => {proof_hash = _hash(&mut hasher, &proof_hash, Some(p))}
+             _ => {proof_hash = _hash(&mut hasher, p, Some(&proof_hash))}
         };
         index *= -1;
     });
+    // now verify the root
+    println!("proof {:?}\nroot: {:?}", &proof_hash, root);
+    &proof_hash == root
 }
 
 #[derive(Debug)]
@@ -120,8 +129,8 @@ impl NaiveMerkleTree {
     }
 
 
-    pub fn generate_proof(&self, data: Vec<u8>) -> Option<Proof> {
-        match self.index_of(&data) {
+    pub fn generate_proof(&self, leaf: String) -> Option<Proof> {
+        match self.index_of(&leaf.into_bytes()) {
             None => None,
             Some(index) => {
                 // proofLen := int(math.Ceil(math.Log2(float64(len(t.data)))))
@@ -141,6 +150,13 @@ impl NaiveMerkleTree {
     }
 }
 
+impl fmt::Display for NaiveMerkleTree {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(&self.nodes[1].as_slice()))
+    }
+}
+
+#[derive(Debug)]
 pub struct Proof {
     index: usize,
     hashes: Vec<Vec<u8>>,
@@ -158,11 +174,24 @@ impl Proof {
     }
 }
 
-impl fmt::Display for NaiveMerkleTree {
+impl fmt::Display for Proof {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::encode(&self.nodes[1].as_slice()))
+        let hashes = self.hashes.iter().map(|h| hex::encode(h)).collect::<Vec<String>>().join(":");
+        write!(f, "{}:{}", self.index, hashes)
     }
 }
+
+
+fn _hash(h: &mut Hmac<Sha256>, a: &Vec<u8>, b: Option<&Vec<u8>>) -> Vec<u8> {
+    h.update(a.as_slice());
+    if let Some(data) = b {
+        h.update(data.as_slice());
+    }
+    let vh = h.to_owned().finalize().into_bytes();
+    h.reset();
+    vh.to_vec()
+}
+
 
 
 
@@ -207,9 +236,18 @@ mod tests {
             println!("test_getters#{}", i);
             let (params, expected) = t.to_owned();
             let (data, secret) = params;
-            // test for expected errors
-            let got = compute_root(&data, secret);
-            assert_eq!(String::from(expected), got)
+
+            // build the tree and compute the root
+
+            let t = NaiveMerkleTree::from_strings(secret, &data);
+            let got = hex::encode(t.root());
+
+            // now generate the proofs
+            let proof = t.generate_proof(String::from(&data[0]));
+            println!("{}", proof.unwrap());
+
+
+            assert_eq!(got, expected.to_owned() )
         }
     }
 
@@ -221,9 +259,8 @@ mod tests {
                 (
                     "05fa860d25fa371a7d54d01d3ade2bf9775a4a2c9e6a0c122a726a6329c2ea1e", // root
                     "mysecret", // secret
-                    "data", // data
-                    ("","") // hashes
-
+                    "bob", // leaf
+                    "0:cf6116e181e2d3e9e1ab89f99a1497e0a16537971fe95274e7d2fa671ba397c9:76ee134ddfa42be8dbe054bb3f71cb0e9d37ae1d3cc242f41d1925b69a3d6c0f:d58f534f71d5fc443182a7e3bdae4a0477722fd840f1d57a43928d988688b90f" // hashes
                 ),
                 true,
             ),
@@ -234,6 +271,13 @@ mod tests {
             println!("test_proof#{}", i);
             let (params, expected) = t.to_owned();
             let (root, secret ,data, hashes) = params;
+
+            assert_eq!(merkle_proof_is_valid(
+                root.to_owned(),
+                secret.to_owned(),
+                data.to_owned(),
+                hashes.to_owned(),
+            ), expected)
 
         }
     }
