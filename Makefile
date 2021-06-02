@@ -80,9 +80,10 @@ docker-run:
 	docker run -p 2007:2007 $(DOCKER_IMAGE):latest
 
 wasm-build:
-	wasm-pack build --release
+	wasm-pack build --release --target web
 
-wasm-publish: wasm-build
+wasm-publish: 
+	wasm-pack build --release
 	wasm-pack publish
 
 publish:
