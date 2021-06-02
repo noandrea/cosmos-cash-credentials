@@ -23,27 +23,34 @@ pub fn merkle_root(csv_data: String, secret: String) -> String {
     hex::encode(t.root())
 }
 
+/// Generate a string that encodes the following:
+/// - root of the merkle tree
+/// - index of the leaf data in the tree
+/// - hashes of the intermediate nodes required to re-compute the root
+///
+/// The string formatted as
+/// ROOT:INDEX:HASH_1:...:HASH_N
 #[wasm_bindgen]
 pub fn merkle_gen_proof(csv_data: String, secret: String, leaf: String) -> Option<String> {
     let data = csv_data.split(",").map(|s| String::from(s)).collect::<Vec<String>>();
     let t = NaiveMerkleTree::from_strings(&secret, &data);
     match t.generate_proof(&leaf) {
-        Some(proof) => Some(proof.to_string()),
+        Some(proof) => Some(format!("{}:{}", t.to_string(), proof.to_string())),
         _ => None,
     }
 }
 
 #[wasm_bindgen]
-pub fn merkle_proof_is_valid(root: String, secret: String, leaf: String, proof: String) -> bool {
-
+pub fn merkle_proof_is_valid(proof: String, secret: String, leaf: String) -> bool {
     let pieces:Vec<&str> = proof.split(":").collect();
     // build a proof from a string that looks like
-    // INDEX:HASH1:HASH2:..:HASHn
+    // ROOT:INDEX:HASH1:HASH2:..:HASHn
+    let root = &hex::decode(pieces[0]).unwrap();
     let proof = Proof::new(
-        str::parse::<usize>(pieces[0]).unwrap(),
-        pieces[1..].iter().map(|hx| hex::decode(hx).unwrap()).collect::<Vec<Vec<u8>>>(),
+        str::parse::<usize>(pieces[1]).unwrap(),
+        pieces[2..].iter().map(|hx| hex::decode(hx).unwrap()).collect::<Vec<Vec<u8>>>(),
     );
-    verify_proof(&hex::decode(root).unwrap(), &secret, &leaf.into_bytes(), &proof)
+    verify_proof(root, &secret, &leaf.into_bytes(), &proof)
 }
 
 
@@ -216,7 +223,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tx() {
+    fn test_merkle_root() {
 
         let tests = vec![
             (
@@ -237,7 +244,7 @@ mod tests {
         // run the test cases
 
         for (i, t) in tests.iter().enumerate() {
-            println!("test_getters#{}", i);
+            println!("test_merkle_root#{}", i);
             let (params, expected) = t.to_owned();
             let (data, secret) = params;
 
@@ -261,10 +268,10 @@ mod tests {
         let tests = vec![
             (
                 (
-                    "05fa860d25fa371a7d54d01d3ade2bf9775a4a2c9e6a0c122a726a6329c2ea1e", // root
+                    // root + index + hashes
+                    "05fa860d25fa371a7d54d01d3ade2bf9775a4a2c9e6a0c122a726a6329c2ea1e:0:cf6116e181e2d3e9e1ab89f99a1497e0a16537971fe95274e7d2fa671ba397c9:76ee134ddfa42be8dbe054bb3f71cb0e9d37ae1d3cc242f41d1925b69a3d6c0f:d58f534f71d5fc443182a7e3bdae4a0477722fd840f1d57a43928d988688b90f",
                     "mysecret", // secret
                     "bob", // leaf
-                    "0:cf6116e181e2d3e9e1ab89f99a1497e0a16537971fe95274e7d2fa671ba397c9:76ee134ddfa42be8dbe054bb3f71cb0e9d37ae1d3cc242f41d1925b69a3d6c0f:d58f534f71d5fc443182a7e3bdae4a0477722fd840f1d57a43928d988688b90f" // hashes
                 ),
                 true,
             ),
@@ -274,13 +281,12 @@ mod tests {
         for (i, t) in tests.iter().enumerate() {
             println!("test_proof#{}", i);
             let (params, expected) = t.to_owned();
-            let (root, secret ,data, hashes) = params;
+            let (proof_encoded, secret ,data) = params;
 
             assert_eq!(merkle_proof_is_valid(
-                root.to_owned(),
+                proof_encoded.to_owned(),
                 secret.to_owned(),
                 data.to_owned(),
-                hashes.to_owned(),
             ), expected)
 
         }
