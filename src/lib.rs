@@ -66,7 +66,7 @@ pub fn verify_proof(root: &Vec<u8>, secret: &str, leaf: &Vec<u8>, proof: &Proof)
              0 => {proof_hash = _hash(&mut hasher, &proof_hash, Some(p))}
              _ => {proof_hash = _hash(&mut hasher, p, Some(&proof_hash))}
         };
-        index *= -1;
+        index = index>>1;
     });
     // now verify the root
     &proof_hash == root
@@ -146,6 +146,7 @@ impl NaiveMerkleTree {
                 let proof_len = (self.data.len() as f64).log2().ceil() as usize;
                 let mut hashes:Vec<Vec<u8>> = vec![Vec::new(); proof_len];
 
+                // TODO: there are issue with this operation
                 let mut c = 0;
                 let mut i = index + ((self.nodes.len() as i32)/2) as usize;
                 while i > 1 {
@@ -240,6 +241,21 @@ mod tests {
                 ),
                 "05fa860d25fa371a7d54d01d3ade2bf9775a4a2c9e6a0c122a726a6329c2ea1e",
             ),
+            (
+                // create by parsing
+                (
+                    vec![
+                        "alice".to_owned(),
+                        "21/3/1998".to_owned(),
+                        "kigali/rwanda".to_owned(),
+                        "RW5432".to_owned(),
+                        "333-666-999".to_owned(),
+                        "female".to_owned(),
+                    ],
+                    "anothersecret",
+                ),
+                "31b161ff193f3df7573f1b61da48b929ba41ee30524c7dcea787dae052b624ca",
+            ),
         ];
         // run the test cases
 
@@ -253,9 +269,10 @@ mod tests {
             let t = NaiveMerkleTree::from_strings(secret, &data);
             let got = hex::encode(t.root());
 
-            // now generate the proofs
-            let proof = t.generate_proof("bob");
-            println!("{}", proof.unwrap());
+            // print the record
+            println!("{}", data.join(","));
+            // print all the proofs
+            data.iter().for_each(|e| { let p = t.generate_proof(&e); println!("{} : {}", e, p.unwrap()); });
 
 
             assert_eq!(got, expected.to_owned() )
@@ -272,6 +289,33 @@ mod tests {
                     "05fa860d25fa371a7d54d01d3ade2bf9775a4a2c9e6a0c122a726a6329c2ea1e:0:cf6116e181e2d3e9e1ab89f99a1497e0a16537971fe95274e7d2fa671ba397c9:76ee134ddfa42be8dbe054bb3f71cb0e9d37ae1d3cc242f41d1925b69a3d6c0f:d58f534f71d5fc443182a7e3bdae4a0477722fd840f1d57a43928d988688b90f",
                     "mysecret", // secret
                     "bob", // leaf
+                ),
+                true,
+            ),
+            (
+                (
+                    // root + index + hashes
+                    "05fa860d25fa371a7d54d01d3ade2bf9775a4a2c9e6a0c122a726a6329c2ea1e:4::9074a74de0f34ece3f046403ae88d2eea400281da0ed6ebfa76c949016fa672d:8fff7601d1fa39d8362ab9cc0dd871837aaf8fecaecfde2b0336494d24b961a9",
+                    "mysecret", // secret
+                    "3531234567", // leaf
+                ),
+                true,
+            ),
+            (
+                (
+                    // root + index + hashes
+                    "31b161ff193f3df7573f1b61da48b929ba41ee30524c7dcea787dae052b624ca:0:5b87a60df5abdbeae948d624236aed99726f81703ac75b5e2314da6dce2687ce:4ee990b753d522e593ad0a2deafd8bbe22cb6e3a5337037b88839daf7fe60bf2:0a122503437cc1fa6d6bcbefab8cfedc75dff0e9911603cba54bed46a77cd39b",
+                    "anothersecret", // secret
+                    "alice", // leaf
+                ),
+                true,
+            ),
+            (
+                (
+                    // root + index + hashes
+                    "31b161ff193f3df7573f1b61da48b929ba41ee30524c7dcea787dae052b624ca:3:0b7778df47a81fa8ac87681fbc835d29a84b56ec9e5698f753d06d2735f91a7c:4806bec294c07b7a857391fca14db4ca5507f36a39ea640731f8c7fe975f4a66:0a122503437cc1fa6d6bcbefab8cfedc75dff0e9911603cba54bed46a77cd39b",
+                    "anothersecret", // secret
+                    "RW5432", // leaf
                 ),
                 true,
             ),
