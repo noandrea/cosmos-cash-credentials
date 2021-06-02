@@ -1,0 +1,87 @@
+<html>
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+</head>
+<body>
+<!-- Note the usage of `type=module` here as this is an ES6 module -->
+<script type="module">
+    // Use ES module import syntax to import functionality from the module
+    // that we have compiled.
+    //
+    // Note that the `default` import is an initialization function which
+    // will "boot" the module and make it ready to use. Currently browsers
+    // don't support natively imported WebAssembly as an ES module, but
+    // eventually the manual initialization won't be required!
+    import init, { test_wasm, merkle } from '../pkg/cosmos_cash_credentials.js';
+
+    async function run() {
+        // First up we need to actually load the wasm file, so we use the
+        // default export to inform it where the wasm file is located on the
+        // server, and then we wait on the returned promise to wait for the
+        // wasm to be loaded.
+        //
+        // It may look like this: `await init('./pkg/without_a_bundler_bg.wasm');`,
+        // but there is also a handy default inside `init` function, which uses
+        // `import.meta` to locate the wasm file relatively to js file.
+        //
+        // Note that instead of a string you can also pass in any of the
+        // following things:
+        //
+        // * `WebAssembly.Module`
+        //
+        // * `ArrayBuffer`
+        //
+        // * `Response`
+        //
+        // * `Promise` which returns any of the above, e.g. `fetch("./path/to/wasm")`
+        //
+        // This gives you complete control over how the module is loaded
+        // and compiled.
+        //
+        // Also note that the promise, when resolved, yields the wasm module's
+        // exports which is the same as importing the `*_bg` module in other
+        // modes
+        await init();
+
+        // And afterwards we can use all the functionality defined in wasm.
+        const result = test_wasm();
+        console.log(`test_wasm = ${result}`);
+
+
+
+        document.getElementById("compute").addEventListener("click", () => {
+            const data = document.getElementById("data").value;
+            const secret = document.getElementById("secret").value;
+            const root = merkle(data, secret);
+            document.getElementById("root").innerText = `${root}`;
+
+        });
+    }
+
+    run();
+</script>
+
+<div id="stuff" style="padding: 10px">
+    <h3>Compute Merkle Root</h3>
+    <div>
+        <span><strong>Secret</strong></span> <br>
+        <input style="width: 90vw" type="text" id="secret" placeholder="secret" value="mysecret"><br/>
+        <span><strong>Data</strong></span><br>
+        <input style="width: 90vw" type="text" placeholder="comma,separated,value" id="data"> <br/>
+        <br>
+        <input type="button" id="compute" value="compute root">
+    </div>
+    <h3>Example inputs</h3>
+    <div>
+        <p>bob,1/1/1970,berlin/germany,1234567,3531234567</p>
+        <p></p>
+    </div>
+    <div>
+        <pre id="root"></pre>
+    </div>
+    <hr>
+    <h3>Verify data</h3>
+
+</div>
+</body>
+</html>
