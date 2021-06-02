@@ -8,6 +8,9 @@
 
 This is the Cosmos Cash credentials validator using HMAC and Merkle trees.
 
+Ported from [go-merkletree](https://github.com/wealdtech/go-merkletree) with some changes.
+
+
 :warning: Experimental :warning:
 
 
