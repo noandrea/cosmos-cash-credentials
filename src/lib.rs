@@ -27,7 +27,7 @@ pub fn merkle_root(csv_data: String, secret: String) -> String {
 pub fn merkle_gen_proof(csv_data: String, secret: String, leaf: String) -> Option<String> {
     let data = csv_data.split(",").map(|s| String::from(s)).collect::<Vec<String>>();
     let t = NaiveMerkleTree::from_strings(&secret, &data);
-    match t.generate_proof(leaf) {
+    match t.generate_proof(&leaf) {
         Some(proof) => Some(proof.to_string()),
         _ => None,
     }
@@ -52,10 +52,8 @@ pub fn verify_proof(root: &Vec<u8>, secret: &str, leaf: &Vec<u8>, proof: &Proof)
     // use our secret to start with the hashing
     let mut hasher:Hmac<Sha256> = Hmac::new_from_slice(secret.as_bytes()).unwrap();
 
-    let mut index = (proof.index() + 2^proof.hashes().len()) as i32;
-
+    let mut index = (proof.index() + (1<<proof.hashes().len())) as i32;
     let mut proof_hash = _hash(&mut hasher, leaf, None);
-
     proof.hashes().iter().for_each(|p| {
         match index % 2 {
              0 => {proof_hash = _hash(&mut hasher, &proof_hash, Some(p))}
@@ -64,7 +62,6 @@ pub fn verify_proof(root: &Vec<u8>, secret: &str, leaf: &Vec<u8>, proof: &Proof)
         index *= -1;
     });
     // now verify the root
-    println!("proof {:?}\nroot: {:?}", &proof_hash, root);
     &proof_hash == root
 }
 
@@ -80,11 +77,13 @@ struct NaiveMerkleTree {
 
 impl NaiveMerkleTree {
 
+    /// Create a new NaiveMerkleTree from a secret and a list of string data
     pub fn from_strings(secret: &str, src_data: &Vec<String>) -> Self {
         let data = src_data.iter().map(|v| Vec::from(v.to_owned())).collect::<Vec<Vec<u8>>>();
         Self::new(secret, data)
     }
 
+    /// Create a new NaiveMerkleTree using a secret and a list of data
     pub fn new(secret: &str, data: Vec<Vec<u8>>) -> Self {
         let mut hash:Hmac<Sha256> = Hmac::new_from_slice(secret.as_bytes()).unwrap();
         // branchesLen := int(math.Exp2(math.Ceil(math.Log2(float64(len(data))))))
@@ -115,38 +114,43 @@ impl NaiveMerkleTree {
         }
     }
 
+    /// Returns the root of the Merkle tree.
     pub fn root(&self) ->Vec<u8> {
         self.nodes[1].to_owned()
     }
 
-    // GenerateProof generates the proof for a piece of data.
-    // Height is the height of the pollard to verify the proof.  If using the Merkle root to verify this should be 0.
-    // If the data is not present in the tree this will return an error.
-    // If the data is present in the tree this will return the hashes for each level in the tree and the index of the value in the tree
 
+    /// Returns the index of an element in the data
+    ///
+    /// If the element is not found returns None
     fn index_of(&self, data: &Vec<u8>) -> Option<usize> {
         self.data.iter().position(|r| r == data)
     }
 
-
-    pub fn generate_proof(&self, leaf: String) -> Option<Proof> {
-        match self.index_of(&leaf.into_bytes()) {
-            None => None,
+    /// generates the proof for a piece of data.
+    ///
+    /// If the data is not present in the tree this will return None.
+    /// If the data is present in the tree this will return a proof containing
+    /// the hashes for each level in the tree and the index of the value in the tree
+    pub fn generate_proof(&self, leaf: &str) -> Option<Proof> {
+        match self.index_of(&leaf.as_bytes().to_vec()) {
             Some(index) => {
                 // proofLen := int(math.Ceil(math.Log2(float64(len(t.data)))))
                 let proof_len = (self.data.len() as f64).log2().ceil() as usize;
                 let mut hashes:Vec<Vec<u8>> = vec![Vec::new(); proof_len];
 
                 let mut c = 0;
-                let mut i = index + ((self.nodes.len() as f64)/2.0) as usize;
+                let mut i = index + ((self.nodes.len() as i32)/2) as usize;
                 while i > 1 {
                     hashes[c] = self.nodes[i^1].to_owned();
                     c+=1;
                     i/=2;
                 }
                 Some(Proof::new(index, hashes))
-            }
+            },
+            _ => None,
         }
+
     }
 }
 
@@ -243,7 +247,7 @@ mod tests {
             let got = hex::encode(t.root());
 
             // now generate the proofs
-            let proof = t.generate_proof(String::from(&data[0]));
+            let proof = t.generate_proof("bob");
             println!("{}", proof.unwrap());
 
 
