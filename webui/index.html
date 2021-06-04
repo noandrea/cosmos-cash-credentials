@@ -1,139 +1,174 @@
 <html>
+
 <head>
-    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+    <style>
+        body {
+            background-color: #f8f8f2;
+
+        }
+    </style>
 </head>
+
 <body>
-<!-- Note the usage of `type=module` here as this is an ES6 module -->
-<script type="module">
-    // Use ES module import syntax to import functionality from the module
-    // that we have compiled.
-    //
-    // Note that the `default` import is an initialization function which
-    // will "boot" the module and make it ready to use. Currently browsers
-    // don't support natively imported WebAssembly as an ES module, but
-    // eventually the manual initialization won't be required!
-    import init, { test_wasm, merkle_root, merkle_gen_proof, merkle_proof_is_valid } from '../pkg/cosmos_cash_credentials.js';
+    <!-- Note the usage of `type=module` here as this is an ES6 module -->
+    <script type="module">
+        // Use ES module import syntax to import functionality from the module
+        // that we have compiled.
+        //
+        // Note that the `default` import is an initialization function which
+        // will "boot" the module and make it ready to use. Currently browsers
+        // don't support natively imported WebAssembly as an ES module, but
+        // eventually the manual initialization won't be required!
+        import init, { test_wasm, merkle_root, merkle_gen_proof, merkle_proof_is_valid } from '/pkg/cosmos_cash_credentials.js';
+        // import init, { test_wasm, merkle_root, merkle_gen_proof, merkle_proof_is_valid } from '../pkg/cosmos_cash_credentials.js';
+        async function run() {
+            // First up we need to actually load the wasm file, so we use the
+            // default export to inform it where the wasm file is located on the
+            // server, and then we wait on the returned promise to wait for the
+            // wasm to be loaded.
+            //
+            // It may look like this: `await init('./pkg/without_a_bundler_bg.wasm');`,
+            // but there is also a handy default inside `init` function, which uses
+            // `import.meta` to locate the wasm file relatively to js file.
+            //
+            // Note that instead of a string you can also pass in any of the
+            // following things:
+            //
+            // * `WebAssembly.Module`
+            //
+            // * `ArrayBuffer`
+            //
+            // * `Response`
+            //
+            // * `Promise` which returns any of the above, e.g. `fetch("./path/to/wasm")`
+            //
+            // This gives you complete control over how the module is loaded
+            // and compiled.
+            //
+            // Also note that the promise, when resolved, yields the wasm module's
+            // exports which is the same as importing the `*_bg` module in other
+            // modes
+            await init();
 
-    async function run() {
-        // First up we need to actually load the wasm file, so we use the
-        // default export to inform it where the wasm file is located on the
-        // server, and then we wait on the returned promise to wait for the
-        // wasm to be loaded.
-        //
-        // It may look like this: `await init('./pkg/without_a_bundler_bg.wasm');`,
-        // but there is also a handy default inside `init` function, which uses
-        // `import.meta` to locate the wasm file relatively to js file.
-        //
-        // Note that instead of a string you can also pass in any of the
-        // following things:
-        //
-        // * `WebAssembly.Module`
-        //
-        // * `ArrayBuffer`
-        //
-        // * `Response`
-        //
-        // * `Promise` which returns any of the above, e.g. `fetch("./path/to/wasm")`
-        //
-        // This gives you complete control over how the module is loaded
-        // and compiled.
-        //
-        // Also note that the promise, when resolved, yields the wasm module's
-        // exports which is the same as importing the `*_bg` module in other
-        // modes
-        await init();
+            // And afterwards we can use all the functionality defined in wasm.
+            const result = test_wasm();
+            console.log(`test_wasm = ${result}`);
 
-        // And afterwards we can use all the functionality defined in wasm.
-        const result = test_wasm();
-        console.log(`test_wasm = ${result}`);
+            function val(id) {
+                return document.getElementById(id).value.trim()
+            }
 
-        function val(id) {
-            return document.getElementById(id).value.trim()
+            // root
+            document.getElementById("compute").addEventListener("click", () => {
+                const data = val("data");
+                const secret = val("secret");
+                const root = merkle_root(data, secret);
+                document.getElementById("root").innerText = `${root}`;
+            });
+
+            // root with proof
+            document.getElementById("proof_compute").addEventListener("click", () => {
+                const data = val("proof_data");
+                const secret = val("proof_secret");
+                const leaf = val("proof_leaf");
+                const proof = merkle_gen_proof(data, secret, leaf);
+                document.getElementById("proof").innerText = `${proof}`;
+            });
+
+            // verify
+            document.getElementById("verify_compute").addEventListener("click", () => {
+                const secret = val("verify_secret");
+                const proof = val("verify_proof");
+                const leaf = val("verify_leaf");
+                const is_verified = merkle_proof_is_valid(proof, secret, leaf);
+                console.log(is_verified);
+
+                const msg = `the submitted proof is ${is_verified ? "<span style='color: green'>VERIFIED</span>" : "<span style='color: red'>NOT VERIFIED</span>"}`
+
+                document.getElementById("verify").innerHTML = `${msg}<br><br></br>${proof.split(":").join("<br>")}`;
+            });
         }
 
-        // root
-        document.getElementById("compute").addEventListener("click", () => {
-            const data = val("data");
-            const secret = val("secret");
-            const root = merkle_root(data, secret);
-            document.getElementById("root").innerText = `${root}`;
-        });
+        run();
+    </script>
 
-        // root with proof
-        document.getElementById("proof_compute").addEventListener("click", () => {
-            const data = val("proof_data");
-            const secret = val("proof_secret");
-            const leaf = val("proof_leaf");
-            const proof = merkle_gen_proof(data, secret, leaf);
-            document.getElementById("proof").innerText = `${proof}`;
-        });
 
-        // verify
-        document.getElementById("verify_compute").addEventListener("click", () => {
-            const secret = val("verify_secret");
-            const proof = val("verify_proof");
-            const leaf = val("verify_leaf");
-            const is_verified = merkle_proof_is_valid(proof, secret, leaf);
-            console.log(is_verified);
 
-            const msg = `the submitted proof is${is_verified? "<span style='color: green'>VERIFIED</span>" : "<span style='color: red'> NOT VERIFIED</span>" }`
+    <div id="stuff" style="padding: 10px">
+        <h3>Compute Merkle Root</h3>
+        <div>
+            <span><strong>Secret</strong></span> <br>
+            <input style="width: 90vw" type="text" id="secret" placeholder="secret" value="mysecret"><br />
+            <span><strong>Data</strong></span><br>
+            <input style="width: 90vw" type="text" placeholder="comma,separated,value" id="data"> <br />
+            <br>
+            <input type="button" id="compute" value="compute root">
+        </div>
+        <h3>Example inputs</h3>
+        <div>
+            <p>bob,1/1/1970,berlin/germany,1234567,3531234567</p>
+            <p></p>
+        </div>
+        <div>
+            <pre id="root"></pre>
+        </div>
+        <hr>
+        <h3>Generate proof</h3>
+        <div>
+            <span><strong>Secret</strong></span> <br>
+            <input id="proof_secret" style="width: 90vw" type="text" placeholder="secret" value="mysecret"><br />
+            <span><strong>Data</strong></span><br>
+            <input id="proof_data" style="width: 90vw" type="text" placeholder="comma,separated,value"> <br />
+            <span><strong>Item to generate the proof for</strong></span><br>
+            <input id="proof_leaf" style="width: 90vw" type="text" placeholder="value"> <br />
+            <br>
+            <input id="proof_compute" type="button" value="compute proof">
+        </div>
+        <div style="padding: 10px 0 0 0">
+            <textarea id="proof" rows="8" style="max-width: 90vw; min-width: 70vw"></textarea>
+        </div>
+        <hr>
+        <h3>Verify Proof (Off-chain)</h3>
+        <div>
+            <span><strong>Secret</strong></span> <br>
+            <input id="verify_secret" style="width: 90vw" type="text" placeholder="secret" value="mysecret"><br />
+            <span><strong>Item to prove</strong></span><br>
+            <input id="verify_leaf" style="width: 90vw" type="text" placeholder="value"> <br />
+            <span><strong>Proof</strong></span><br>
+            <textarea id="verify_proof" rows="8" style="max-width: 90vw; min-width: 70vw"
+                placeholder="root:id:hashes"></textarea><br>
 
-            document.getElementById("verify").innerHTML = `${msg}<br><br></br>${proof.split(":").join("<br>")}`;
-        });
-    }
+            <br>
+            <input id="verify_compute" type="button" value="verify proof">
+        </div>
+        <div>
+            <pre id="verify"></pre>
+        </div>
 
-    run();
-</script>
-
-<div id="stuff" style="padding: 10px">
-    <h3>Compute Merkle Root</h3>
+        <!-- <h3>Verify Proof (Online)</h3>
     <div>
+        <span><strong>Node</strong></span> <br>
+        <input id="verify_online_node" style="width: 90vw" type="text"  placeholder="secret" value="https://cosmos-cash.app.beta.starport.cloud:443"><br/>
+        <span><strong>DID</strong></span> <br>
+        <input id="verify_online_did" style="width: 90vw" type="text"  placeholder="did:cash:..."><br/>
         <span><strong>Secret</strong></span> <br>
-        <input style="width: 90vw" type="text" id="secret" placeholder="secret" value="mysecret"><br/>
-        <span><strong>Data</strong></span><br>
-        <input style="width: 90vw" type="text" placeholder="comma,separated,value" id="data"> <br/>
-        <br>
-        <input type="button" id="compute" value="compute root">
-    </div>
-    <h3>Example inputs</h3>
-    <div>
-        <p>bob,1/1/1970,berlin/germany,1234567,3531234567</p>
-        <p></p>
-    </div>
-    <div>
-        <pre id="root"></pre>
-    </div>
-    <hr>
-    <h3>Generate proof</h3>
-    <div>
-        <span><strong>Secret</strong></span> <br>
-        <input id="proof_secret" style="width: 90vw" type="text"  placeholder="secret" value="mysecret"><br/>
-        <span><strong>Data</strong></span><br>
-        <input id="proof_data" style="width: 90vw" type="text" placeholder="comma,separated,value" > <br/>
-        <span><strong>Element to prove</strong></span><br>
-        <input id="proof_leaf" style="width: 90vw" type="text" placeholder="value" > <br/>
-        <br>
-        <input id="proof_compute" type="button"  value="compute proof">
-    </div>
-    <div style="padding: 10px 0 0 0">
-        <textarea id="proof" rows="8" style="max-width: 90vw; min-width: 70vw"></textarea>
-    </div>
-    <hr>
-    <h3>Verify Proof</h3>
-    <div>
-        <span><strong>Secret</strong></span> <br>
-        <input id="verify_secret" style="width: 90vw" type="text"  placeholder="secret" value="mysecret"><br/>
+        <input id="verify_online_secret" style="width: 90vw" type="text"  placeholder="secret" value="mysecret"><br/>
+        <span><strong>Item to prove</strong></span><br>
+        <input id="verify_online_leaf" style="width: 90vw" type="text" placeholder="value" > <br/>
         <span><strong>Proof</strong></span><br>
-        <input id="verify_proof" style="width: 90vw" type="text" placeholder="root:id:hashes" > <br/>
-        <span><strong>Element to prove</strong></span><br>
-        <input id="verify_leaf" style="width: 90vw" type="text" placeholder="value" > <br/>
+        <textarea id="verify_online_proof" rows="8" style="max-width: 90vw; min-width: 70vw" placeholder="id:hashes"></textarea><br>
+
         <br>
-        <input id="verify_compute" type="button"  value="verify proof">
+        <input id="verify_online_compute" type="button"  value="verify proof">
     </div>
     <div>
-        <pre id="verify"></pre>
-    </div>
+        <pre id="verify_online"></pre>
+    </div> -->
 
-</div>
+    </div>
+    <hr>
+    <span><a href="https://github.com/noandrea/cosmos-cash-credentials#cosmos-cash--credentials">source code</a></span>
 </body>
+
 </html>
