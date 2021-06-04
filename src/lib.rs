@@ -48,17 +48,26 @@ pub fn merkle_gen_proof(csv_data: String, secret: String, leaf: String) -> Optio
 #[wasm_bindgen]
 pub fn merkle_proof_is_valid(proof: String, secret: String, leaf: String) -> bool {
     let pieces: Vec<&str> = proof.split(":").collect();
+    if pieces.len() < 3 {
+        return false;
+    }
     // build a proof from a string that looks like
     // ROOT:INDEX:HASH1:HASH2:..:HASHn
-    let root = &hex::decode(pieces[0]).unwrap();
-    let proof = Proof::new(
-        str::parse::<usize>(pieces[1]).unwrap(),
-        pieces[2..]
-            .iter()
-            .map(|hx| hex::decode(hx).unwrap())
-            .collect::<Vec<Vec<u8>>>(),
-    );
-    verify_proof(root, &secret, &leaf.into_bytes(), &proof)
+    match &hex::decode(pieces[0]) {
+        Ok(root) => {
+            let index = str::parse::<usize>(pieces[1]);
+            let hashes = pieces[2..]
+                .iter()
+                .map(|hx| hex::decode(hx))
+                .collect::<Result<Vec<Vec<u8>>, _>>();
+            if index.is_err() || hashes.is_err() {
+                return false;
+            }
+            let proof = Proof::new(index.unwrap(), hashes.unwrap());
+            verify_proof(root, &secret, &leaf.into_bytes(), &proof)
+        }
+        _ => false,
+    }
 }
 
 pub fn verify_proof(root: &Vec<u8>, secret: &str, leaf: &Vec<u8>, proof: &Proof) -> bool {
@@ -426,6 +435,42 @@ mod tests {
                     "THIS IS NOT HERE", // leaf
                 ),
                 false, // invalid leaf
+            ),
+            (
+                (
+                    // root + index + hashes
+                    "31b161ff193f3df7573f1b61da48b929ba41ee30524c7dcea787dae052b624ca:NOTANUMBER:0b7778df47a81fa8ac87681fbc835d29a84b56ec9e5698f753d06d2735f91a7c:4806bec294c07b7a857391fca14db4ca5507f36a39ea640731f8c7fe975f4a66:0a122503437cc1fa6d6bcbefab8cfedc75dff0e9911603cba54bed46a77cd39b",
+                    "anothersecret", // secret
+                    "RW5432", // leaf
+                ),
+                false, // invalid input string
+            ),
+            (
+                (
+                    // root + index + hashes
+                    "",
+                    "anothersecret", // secret
+                    "RW5432", // leaf
+                ),
+                false, // invalid input string
+            ),
+            (
+                (
+                    // root + index + hashes
+                    "🙏:3:0b7778df47a81fa8ac87681fbc835d29a84b56ec9e5698f753d06d2735f91a7c",
+                    "anothersecret", // secret
+                    "RW5432", // leaf
+                ),
+                false, // invalid input string
+            ),
+            (
+                (
+                    // root + index + hashes
+                    "31b161ff193f3df7573f1b61da48b929ba41ee30524c7dcea787dae052b624ca:4:0b7778df47a81fa8ac87681fbc835d29a84b56ec9e5698f753d06d2735f91a7c:4806bec294c07b7a857391fca14db4ca5507f36a39ea640731f8c7fe975f4a66:0a122503437cc1fa6d6bcbefab8cfedc75dff0e9911603cba54bed46a77cd39b:🙏",
+                    "anothersecret", // secret
+                    "RW5432", // leaf
+                ),
+                false, // invalid input string
             ),
         ];
         // run the test cases
