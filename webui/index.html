@@ -47,30 +47,34 @@
         const result = test_wasm();
         console.log(`test_wasm = ${result}`);
 
+        function val(id) {
+            return document.getElementById(id).value.trim()
+        }
 
         // root
         document.getElementById("compute").addEventListener("click", () => {
-            const data = document.getElementById("data").value;
-            const secret = document.getElementById("secret").value;
+            const data = val("data");
+            const secret = val("secret");
             const root = merkle_root(data, secret);
             document.getElementById("root").innerText = `${root}`;
         });
 
         // root with proof
         document.getElementById("proof_compute").addEventListener("click", () => {
-            const data = document.getElementById("proof_data").value;
-            const secret = document.getElementById("proof_secret").value;
-            const leaf = document.getElementById("proof_leaf").value;
+            const data = val("proof_data");
+            const secret = val("proof_secret");
+            const leaf = val("proof_leaf");
             const proof = merkle_gen_proof(data, secret, leaf);
             document.getElementById("proof").innerText = `${proof}`;
         });
 
         // verify
         document.getElementById("verify_compute").addEventListener("click", () => {
-            const secret = document.getElementById("verify_secret").value;
-            const proof = document.getElementById("verify_proof").value;
-            const leaf = document.getElementById("verify_leaf").value;
+            const secret = val("verify_secret");
+            const proof = val("verify_proof");
+            const leaf = val("verify_leaf");
             const is_verified = merkle_proof_is_valid(proof, secret, leaf);
+            console.log(is_verified);
 
             const msg = `the submitted proof is${is_verified? "<span style='color: green'>VERIFIED</span>" : "<span style='color: red'> NOT VERIFIED</span>" }`
 
