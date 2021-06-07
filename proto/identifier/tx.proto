@@ -1,0 +1,93 @@
+syntax = "proto3";
+package allinbits.cosmoscash.identifier;
+
+import "gogoproto/gogo.proto";
+import "identifier/identifier.proto";
+
+option go_package = "github.com/allinbits/cosmos-cash/x/identifier/types";
+
+// Msg defines the identity Msg service.
+service Msg {
+  // CreateDidDocument defines a method for creating a new identity.
+  rpc CreateIdentifier(MsgCreateIdentifier) returns (MsgCreateIdentifierResponse);
+  rpc AddAuthentication(MsgAddAuthentication) returns (MsgAddAuthenticationResponse);
+  rpc AddService(MsgAddService) returns (MsgAddServiceResponse);
+  rpc DeleteAuthentication(MsgDeleteAuthentication) returns (MsgDeleteAuthenticationResponse);
+  rpc DeleteService(MsgDeleteService) returns (MsgDeleteServiceResponse);
+}
+
+// MsgCreateIdentifier defines a SDK message for creating a new identifer.
+message MsgCreateIdentifier {
+  option (gogoproto.equal)           = false;
+  option (gogoproto.goproto_getters) = false;
+
+  string     context        = 1; 
+  string     id             = 2; 
+
+  // authentication represents public key associated with the did document.
+  repeated Authentication authentication = 3;
+
+  // services represents each service associated with a did
+  repeated Service services = 4;
+
+  // owner represents the user creating the message 
+  string owner = 5;
+}
+
+message MsgCreateIdentifierResponse {}
+
+message MsgAddAuthentication {
+  option (gogoproto.equal)           = false;
+  option (gogoproto.goproto_getters) = false;
+
+  string     id             = 1; 
+
+  // authentication represents public key associated with the did document.
+  Authentication authentication = 2;
+
+  // owner is the address of the user creating the message 
+  string owner = 3;
+}
+
+message MsgAddAuthenticationResponse {}
+
+message MsgAddService {
+  option (gogoproto.equal)           = false;
+  option (gogoproto.goproto_getters) = false;
+
+  string     id             = 1; 
+
+  // authentication represents public key associated with the did document.
+  Service service_data = 2;
+
+  // owner is the address of the user creating the message 
+  string owner = 3;
+}
+
+message MsgAddServiceResponse {}
+
+message MsgDeleteAuthentication {
+  option (gogoproto.equal)           = false;
+  option (gogoproto.goproto_getters) = false;
+
+  string     id             = 1; 
+  
+  string     key = 2;
+  // owner is the address of the user creating the message 
+  string owner = 3;
+}
+
+message MsgDeleteAuthenticationResponse {}
+
+message MsgDeleteService {
+  option (gogoproto.equal)           = false;
+  option (gogoproto.goproto_getters) = false;
+
+  string     id             = 1; 
+  
+  string     service_id = 2;
+  // owner is the address of the user creating the message 
+  string owner = 3;
+}
+
+message MsgDeleteServiceResponse {}

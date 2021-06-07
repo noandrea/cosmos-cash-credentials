@@ -28,7 +28,11 @@ wasm-bindgen = "0.2.73"
 hex = "0.4.3"
 hmac = "0.11.0"
 sha2 = "0.9.5"
+tonic = "0.4.3"
 
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.23"
+
+[build-dependencies]
+tonic-build = "0.4"
