@@ -28,11 +28,15 @@ wasm-bindgen = "0.2.73"
 hex = "0.4.3"
 hmac = "0.11.0"
 sha2 = "0.9.5"
-tonic = "0.4.3"
+
+prost = "0.7.0"
+prost-types = "0.7"
+tonic = { version = "0.4.3", features = ["tls", "tls-roots"] }
 
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.23"
+tokio-test = "0.4.2"
 
 [build-dependencies]
 tonic-build = "0.4"
