@@ -27,7 +27,7 @@ build:
 
 build-dist:
 	@echo building release
-	cargo build --release
+	cargo build --release 
 	# @echo copy resources
 	# cp -r README.md LICENSE $(OUTPUTFOLDER)
 	@echo done
@@ -80,7 +80,7 @@ docker-run:
 	docker run -p 2007:2007 $(DOCKER_IMAGE):latest
 
 wasm-build:
-	wasm-pack build --release --target web
+	wasm-pack build --release --target web --out-dir=webui/pkg 
 
 wasm-publish: 
 	wasm-pack build --release

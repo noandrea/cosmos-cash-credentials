@@ -3,9 +3,16 @@
 
 use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha256;
-use std::fmt;
+use std::{fmt, future::Future};
 
-use wasm_bindgen::prelude::*;
+use cosmoscash::allinbits::cosmoscash::identifier::{
+    query_client::QueryClient, QueryIdentifierRequest,
+};
+use grpc_web_client::Client;
+use wasm_bindgen::{prelude::*, JsStatic};
+use wasm_bindgen_futures::future_to_promise;
+
+mod cosmoscash;
 
 /// A simple wasm function for testing
 ///
@@ -13,6 +20,28 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub fn test_wasm() -> f32 {
     42.0
+}
+
+#[wasm_bindgen]
+pub async fn query_credentials(
+    grpc_url: String,
+    credential_id: String,
+) -> Result<JsValue, JsValue> {
+    // use a wasm compatible client
+    let client = Client::new(grpc_url.to_string());
+
+    let mut qc = QueryClient::new(client);
+
+    let qir = tonic::Request::new(QueryIdentifierRequest { id: credential_id });
+    let rsp = qc.identifier(qir).await;
+
+    match rsp {
+        Ok(rsp) => match rsp.get_ref().to_owned().did_document {
+            Some(did) => Ok(JsValue::from(did.id)),
+            None => Ok(JsValue::NULL),
+        },
+        Err(_) => Ok(JsValue::NULL),
+    }
 }
 
 #[wasm_bindgen]

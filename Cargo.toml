@@ -7,36 +7,42 @@ license = "MIT"
 description = "Library to perform Cosmos Cash credentials generation/verification"
 repository = "https://github.com/noandrea/cosmos-cash-credentials"
 homepage = "https://tendermint.com"
+resolver = "2"
 
 
 [package.metadata.wasm-pack.profile.release]
-# wasm-opt = false
-# wasm-opt = ['-Os', '--enable-mutable-globals']
 wasm-opt = ['-Os']
 
 
 [profile.release]
 lto = true
-opt-level = 's'
+opt-level = 'z'
+codegen-units = 1
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-wasm-bindgen = "0.2.73"
 hex = "0.4.3"
 hmac = "0.11.0"
 sha2 = "0.9.5"
 
-prost = "0.7.0"
-prost-types = "0.7"
-tonic = { version = "0.4.3", features = ["tls", "tls-roots"] }
+wasm-bindgen = { version = "0.2.73", default-features = false, features = ["serde-serialize"] }
+wasm-bindgen-futures = "0.4.24"
+tonic = { version = "0.4.3", default-features = false, features = ["codegen", "prost"] } # tls deps bring socket2 that causes the build to fail
+grpc-web-client = "0.1.2"
+prost = { version = "0.7.0", default-features = false }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tonic = { version = "0.4.3", features = ["codegen", "prost", "tls", "tls-roots"] } 
+# js-sys = { version = "0.3.50", default-features = false }
+# web-sys = { version = "0.3.51", default-features = false }
+# tokio = { version = "1.7.0", default-features = false }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.23"
 tokio-test = "0.4.2"
 
 [build-dependencies]
-tonic-build = "0.4"
+tonic-build = { version = "0.4.2", default-features = false, features = ["prost"] }

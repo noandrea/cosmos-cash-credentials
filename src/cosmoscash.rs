@@ -1,21 +1,6 @@
 pub mod allinbits {
     pub mod cosmoscash {
 
-        /// queries a did identifiers
-        pub async fn query_did(url: &str, did: &str) -> Option<identifier::DidDocument> {
-            let mut qc = identifier::query_client::QueryClient::connect(url.to_owned())
-                .await
-                .unwrap();
-
-            let qir = tonic::Request::new(identifier::QueryIdentifierRequest { id: did.into() });
-            let rsp = qc.identifier(qir).await;
-
-            match rsp {
-                Ok(rsp) => rsp.get_ref().to_owned().did_document,
-                Err(e) => None,
-            }
-        }
-
         pub mod identifier {
             include!("pb/allinbits.cosmoscash.identifier.rs");
         }
@@ -46,6 +31,30 @@ pub mod cosmos {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+use allinbits::cosmoscash::identifier::{
+    query_client::QueryClient, DidDocument, QueryIdentifierRequest,
+};
+
+#[cfg(not(target_arch = "wasm32"))]
+/// queries a did identifiers
+pub async fn query_did(url: &str, did: &str) -> Option<DidDocument> {
+    let channel = tonic::transport::Channel::from_shared(url.to_string())
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+    let mut qc = QueryClient::new(channel);
+
+    let qir = tonic::Request::new(QueryIdentifierRequest { id: did.into() });
+    let rsp = qc.identifier(qir).await;
+
+    match rsp {
+        Ok(rsp) => rsp.get_ref().to_owned().did_document,
+        Err(_) => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -54,7 +63,7 @@ mod tests {
         let url = "https://grpc.cosmos-cash.app.beta.starport.cloud:443";
         // let url = "http://localhost:9090";
         let id = "did:cash:cosmos1qxyh99gmtlmjuac9ygzn8kexx4gfwy9dh89wkf";
-        let f = super::allinbits::cosmoscash::query_did(url, id);
+        let f = super::query_did(url, id);
         let o = tokio_test::block_on(f);
         assert_eq!(o.unwrap().id, id);
     }
