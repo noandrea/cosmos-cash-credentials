@@ -20,7 +20,7 @@
         // will "boot" the module and make it ready to use. Currently browsers
         // don't support natively imported WebAssembly as an ES module, but
         // eventually the manual initialization won't be required!
-        import init, { test_wasm, merkle_root, merkle_gen_proof, merkle_proof_is_valid } from '/pkg/cosmos_cash_credentials.js';
+        import init, { test_wasm, merkle_root, merkle_gen_proof, merkle_proof_is_valid, query_credentials } from '/pkg/cosmos_cash_credentials.js';
         // import init, { test_wasm, merkle_root, merkle_gen_proof, merkle_proof_is_valid } from '../pkg/cosmos_cash_credentials.js';
         async function run() {
             // First up we need to actually load the wasm file, so we use the
@@ -55,12 +55,35 @@
             const result = test_wasm();
             console.log(`test_wasm = ${result}`);
 
+            // UTILS ----- > 
             function val(id) {
                 return document.getElementById(id).value.trim()
             }
+            function reset(id) {
+                document.getElementById(id).innerHTML = "";
+                document.getElementById(id).innerText = "";
+            }
+            function menu() {
+                const h3s = document.getElementsByTagName("h3");
+                const menu = document.getElementById("menu");
+                for (var i = 0; i < h3s.length; i++) {
+                    const h = h3s[i];
+                    if (h.hasAttribute("id")) {
+                        var menuLink = document.createElement("a");
+                        menuLink.setAttribute("href", "#" + h.getAttribute("id"));
+                        menuLink.appendChild(document.createTextNode(h.firstChild.nodeValue));
+
+                        menu.appendChild(menuLink);
+                        menu.appendChild(document.createTextNode(" | "));
+                    }
+                }
+            }
+            menu();
+            // UTILS < ----- 
 
             // root
             document.getElementById("compute").addEventListener("click", () => {
+                document.getElementById("root").innerText = "";
                 const data = val("data");
                 const secret = val("secret");
                 const root = merkle_root(data, secret);
@@ -69,6 +92,7 @@
 
             // root with proof
             document.getElementById("proof_compute").addEventListener("click", () => {
+                document.getElementById("proof").innerText = "";
                 const data = val("proof_data");
                 const secret = val("proof_secret");
                 const leaf = val("proof_leaf");
@@ -78,6 +102,7 @@
 
             // verify
             document.getElementById("verify_compute").addEventListener("click", () => {
+                document.getElementById("verify").innerHTML = "";
                 const secret = val("verify_secret");
                 const proof = val("verify_proof");
                 const leaf = val("verify_leaf");
@@ -88,15 +113,40 @@
 
                 document.getElementById("verify").innerHTML = `${msg}<br><br></br>${proof.split(":").join("<br>")}`;
             });
+
+            /// GRPC
+            document.getElementById("verify_online_compute").addEventListener("click", () => {
+                document.getElementById("verify_online_chain_did").innerHTML = "";
+                const node_url = val("verify_online_node");
+                const did = val("verify_online_did");
+
+
+                console.log("did: ", did);
+                query_credentials(node_url, did).then(v => {
+                    console.log(v);
+                    document.getElementById("verify_online_chain_did").innerHTML = v;
+                }).catch(err => {
+                    console.log(err);
+                    document.getElementById("verify_online_chain_did").innerHTML = err;
+                });
+
+
+            });
+
+
+
+
         }
 
         run();
     </script>
 
+    <div style="padding: 10px; font-size: 12px;" id="menu">
 
+    </div>
 
     <div id="stuff" style="padding: 10px">
-        <h3>Compute Merkle Root</h3>
+        <h3 id="ComputeMerkleRoot">Compute Merkle Root</h3>
         <div>
             <span><strong>Secret</strong></span> <br>
             <input style="width: 90vw" type="text" id="secret" placeholder="secret" value="mysecret"><br />
@@ -114,7 +164,7 @@
             <pre id="root"></pre>
         </div>
         <hr>
-        <h3>Generate proof</h3>
+        <h3 id="GenerateProof">Generate proof</h3>
         <div>
             <span><strong>Secret</strong></span> <br>
             <input id="proof_secret" style="width: 90vw" type="text" placeholder="secret" value="mysecret"><br />
@@ -129,7 +179,7 @@
             <textarea id="proof" rows="8" style="max-width: 90vw; min-width: 70vw"></textarea>
         </div>
         <hr>
-        <h3>Verify Proof (Off-chain)</h3>
+        <h3 id="VerifyProofOffChain">Verify Proof (Off-chain)</h3>
         <div>
             <span><strong>Secret</strong></span> <br>
             <input id="verify_secret" style="width: 90vw" type="text" placeholder="secret" value="mysecret"><br />
@@ -145,29 +195,31 @@
         <div>
             <pre id="verify"></pre>
         </div>
+        <hr />
+        <h3 id="FetchDidOnline">Fetch DID (Online)</h3>
+        <div>
+            <span><strong>Node</strong></span> <br>
+            <input id="verify_online_node" style="width: 90vw" type="text" placeholder="secret"
+                value="https://grpc-web.cosmos-cash.prototyp.xyz"><br />
+            <span><strong>DID</strong></span> <br>
+            <input id="verify_online_did" style="width: 90vw" type="text" placeholder="did:cash:..."
+                value="did:cash:cosmos1qxyh99gmtlmjuac9ygzn8kexx4gfwy9dh89wkf"><br />
+            <br />
+            <input id="verify_online_compute" type="button" value="fetch did">
+            <br />
 
-        <!-- <h3>Verify Proof (Online)</h3>
-    <div>
-        <span><strong>Node</strong></span> <br>
-        <input id="verify_online_node" style="width: 90vw" type="text"  placeholder="secret" value="https://cosmos-cash.app.beta.starport.cloud:443"><br/>
-        <span><strong>DID</strong></span> <br>
-        <input id="verify_online_did" style="width: 90vw" type="text"  placeholder="did:cash:..."><br/>
-        <span><strong>Secret</strong></span> <br>
-        <input id="verify_online_secret" style="width: 90vw" type="text"  placeholder="secret" value="mysecret"><br/>
-        <span><strong>Item to prove</strong></span><br>
-        <input id="verify_online_leaf" style="width: 90vw" type="text" placeholder="value" > <br/>
-        <span><strong>Proof</strong></span><br>
-        <textarea id="verify_online_proof" rows="8" style="max-width: 90vw; min-width: 70vw" placeholder="id:hashes"></textarea><br>
+        </div>
+        <div>
+            <pre id="verify_online_chain_did"
+                style="max-width: 90vw; min-width: 70vw; word-wrap: break-word;white-space: pre-wrap;"></pre>
 
-        <br>
-        <input id="verify_online_compute" type="button"  value="verify proof">
-    </div>
-    <div>
-        <pre id="verify_online"></pre>
-    </div> -->
+        </div>
 
     </div>
     <hr>
+    <div id="chain" style="padding: 10px;">
+
+    </div>
     <span><a href="https://github.com/noandrea/cosmos-cash-credentials#cosmos-cash--credentials">source code</a></span>
 </body>
 
