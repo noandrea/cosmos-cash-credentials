@@ -33,5 +33,15 @@ use the `webui/index.html` for demo
 TODO: add details
 
 
+# Access gRPC from browser
 
+gRPC web requires a proxy that handles cors:
 
+```
+git clone https://github.com/improbable-eng/grpc-web.git
+cd grpc-web
+go install go install ./go/grpcwebproxy
+grpcwebproxy --backend_addr=localhost:9090 --run_tls_server=false --allow_all_origins
+```
+
+for more information check [improbable-eng/grpc-web](https://github.com/improbable-eng/grpc-web)

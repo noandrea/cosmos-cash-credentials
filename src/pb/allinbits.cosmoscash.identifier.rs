@@ -19,6 +19,7 @@
 //}
 
 /// DidDocument represents a dencentralised identifer.
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DidDocument {
     /// @context is spec for did document.
@@ -35,6 +36,7 @@ pub struct DidDocument {
     pub services: ::prost::alloc::vec::Vec<Service>,
 }
 /// Authentication defines how to authenticate a did document.
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Authentication {
     #[prost(string, tag="1")]
@@ -47,6 +49,7 @@ pub struct Authentication {
     pub public_key: ::prost::alloc::string::String,
 }
 /// Service defines how to find data associated with a identifer
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Service {
     #[prost(string, tag="1")]

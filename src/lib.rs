@@ -3,14 +3,13 @@
 
 use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha256;
-use std::{fmt, future::Future};
+use std::fmt;
 
 use cosmoscash::allinbits::cosmoscash::identifier::{
     query_client::QueryClient, QueryIdentifierRequest,
 };
 use grpc_web_client::Client;
-use wasm_bindgen::{prelude::*, JsStatic};
-use wasm_bindgen_futures::future_to_promise;
+use wasm_bindgen::prelude::*;
 
 mod cosmoscash;
 
@@ -37,10 +36,10 @@ pub async fn query_credentials(
 
     match rsp {
         Ok(rsp) => match rsp.get_ref().to_owned().did_document {
-            Some(did) => Ok(JsValue::from(did.id)),
+            Some(did) => Ok(JsValue::from(serde_json::to_string_pretty(&did).unwrap())),
             None => Ok(JsValue::NULL),
         },
-        Err(_) => Ok(JsValue::NULL),
+        Err(e) => Ok(JsValue::from(e.to_string())),
     }
 }
 

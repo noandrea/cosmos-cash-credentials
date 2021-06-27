@@ -61,8 +61,16 @@ mod tests {
     #[test]
     fn test_query_identifier() {
         let url = "https://grpc.cosmos-cash.app.beta.starport.cloud:443";
-        // let url = "http://localhost:9090";
         let id = "did:cash:cosmos1qxyh99gmtlmjuac9ygzn8kexx4gfwy9dh89wkf";
+        let f = super::query_did(url, id);
+        let o = tokio_test::block_on(f);
+        assert_eq!(o.unwrap().id, id);
+    }
+
+    #[test]
+    fn test_query_local_identifier() {
+        let url = "http://localhost:9090";
+        let id = "did:cash:cosmos1uam3kpjdx3wksx46lzq6y628wwyzv0guuren75";
         let f = super::query_did(url, id);
         let o = tokio_test::block_on(f);
         assert_eq!(o.unwrap().id, id);
