@@ -1,3 +1,6 @@
+use grpc_web_client::Client;
+use wasm_bindgen::prelude::*;
+
 pub mod allinbits {
     pub mod cosmoscash {
 
@@ -31,7 +34,6 @@ pub mod cosmos {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 use allinbits::cosmoscash::identifier::{
     query_client::QueryClient, DidDocument, QueryIdentifierRequest,
 };
@@ -55,6 +57,28 @@ pub async fn query_did(url: &str, did: &str) -> Option<DidDocument> {
     }
 }
 
+#[wasm_bindgen]
+pub async fn query_credentials(
+    grpc_url: String,
+    credential_id: String,
+) -> Result<JsValue, JsValue> {
+    // use a wasm compatible client
+    let client = Client::new(grpc_url.to_string());
+
+    let mut qc = QueryClient::new(client);
+
+    let qir = tonic::Request::new(QueryIdentifierRequest { id: credential_id });
+    let rsp = qc.identifier(qir).await;
+
+    match rsp {
+        Ok(rsp) => match rsp.get_ref().to_owned().did_document {
+            Some(did) => Ok(JsValue::from(serde_json::to_string_pretty(&did).unwrap())),
+            None => Ok(JsValue::NULL),
+        },
+        Err(e) => Ok(JsValue::from(e.to_string())),
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -67,12 +91,12 @@ mod tests {
         assert_eq!(o.unwrap().id, id);
     }
 
-    #[test]
-    fn test_query_local_identifier() {
-        let url = "http://localhost:9090";
-        let id = "did:cash:cosmos1uam3kpjdx3wksx46lzq6y628wwyzv0guuren75";
-        let f = super::query_did(url, id);
-        let o = tokio_test::block_on(f);
-        assert_eq!(o.unwrap().id, id);
-    }
+    // #[test]
+    // fn test_query_local_identifier() {
+    //     let url = "http://localhost:9090";
+    //     let id = "did:cash:cosmos1uam3kpjdx3wksx46lzq6y628wwyzv0guuren75";
+    //     let f = super::query_did(url, id);
+    //     let o = tokio_test::block_on(f);
+    //     assert_eq!(o.unwrap().id, id);
+    // }
 }
