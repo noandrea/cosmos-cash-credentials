@@ -11,7 +11,11 @@ fn main() {
             "#[derive(serde::Serialize, serde::Deserialize)]",
         )
         .type_attribute(
-            "allinbits.cosmoscash.identifier.Authentication",
+            "allinbits.cosmoscash.identifier.DidDocument.VerificationRelationships",
+            "#[derive(serde::Serialize, serde::Deserialize)]",
+        )
+        .type_attribute(
+            "allinbits.cosmoscash.identifier.VerificationMethod",
             "#[derive(serde::Serialize, serde::Deserialize)]",
         )
         .out_dir("src/pb")
